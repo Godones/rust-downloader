@@ -251,7 +251,7 @@ mod HttpDownloadTest {
     }
     async fn test_httpdownload_success() {
         let url = "https://issuecdn.baidupcs.com/issue/netdisk/yunguanjia/BaiduNetdisk_7.2.8.9.exe";
-        let download = HttpDownloader::new()
+        let mut download = HttpDownloader::new()
             .set_url(String::from(url))
             .set_concurrency(8)
             .set_output_path(".".to_string());

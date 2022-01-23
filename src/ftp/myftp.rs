@@ -3,6 +3,7 @@ use async_ftp::FtpStream;
 use async_std::fs::File;
 use futures_util::AsyncWriteExt;
 use std::str::from_utf8;
+use colorful::{Color, Colorful};
 
 pub struct FTP {
     ftpstream: FtpStream,
@@ -13,17 +14,18 @@ impl FTP {
     pub async fn login(address: &str, user: &str, password: &str) -> Self {
         let mut ftp_stream = FtpStream::connect(address).await.unwrap();
         ftp_stream.login(&user, &password).await.unwrap();
-        println!("Login Ok!");
+        println!("{}","Login Ok!".color(Color::Red));
         FTP {
             ftpstream: ftp_stream,
         }
     }
     /// 打印当前目录文件
-    pub async fn list(&mut self, path: Option<&str>) {
-        let name_list = self.ftpstream.list(path).await.unwrap();
+    pub async fn list(&mut self, path: Option<&str>){
+        println!("{:?}",path);
+        let name_list = self.ftpstream.list(path).await.unwrap_or(Vec::new());
         name_list.into_iter().for_each(|name| {
             println!("{}", name);
-        })
+        });
     }
 
     /// 进入某个目录下
@@ -33,12 +35,14 @@ impl FTP {
 
     /// 下载某个文件到指定目录下
     pub async fn download(&mut self, filename: &str, target: &str) -> bool {
+        println!("{}",format!("download {}.......",filename).gradient(Color::Green));
         let remote_file = self.ftpstream.simple_retr(filename).await.unwrap();
         let vec_data = remote_file.into_inner();
         let target_path = target.to_string()+filename;
         let mut file = File::create(target_path).await.unwrap();
         let file_content = from_utf8(vec_data.as_slice()).unwrap();
         file.write_all(file_content.as_bytes()).await.unwrap();
+        println!("{}","download oK.......".gradient(Color::Green));
         true
     }
 
@@ -47,8 +51,6 @@ impl FTP {
         self.ftpstream.quit().await.unwrap();
     }
 }
-
-
 
 mod ftptest{
     use std::fs;

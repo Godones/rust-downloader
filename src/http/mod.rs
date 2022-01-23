@@ -1,3 +1,4 @@
+use colorful::{Color, Colorful};
 use crate::http::http::HttpDownloader;
 use crate::http::parser::CommandArgument;
 
@@ -17,5 +18,8 @@ pub async fn download(){
             downloader = downloader.set_url(url);
             downloader.download().await.unwrap();
         }
+    }
+    else {
+        println!("{}","Please check your entry".color(Color::Red));
     }
 }

@@ -1,11 +1,7 @@
-mod http;
-
-extern crate lib;
-use lib::ftp::myftp::FTP;
+use lib::ftp::execute;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-
+    execute().await;
     Ok(())
 }
