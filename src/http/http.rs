@@ -19,6 +19,7 @@ pub struct HttpDownloader {
     concurrency: Option<u16>,    //线程数目
     output_path: Option<String>, //保存路径
     client: reqwest::Client,     //客户端
+    count:usize,//记录下载的文件数量，用来生成没有文件名的文件
 }
 
 impl fmt::Display for HttpDownloader {
@@ -37,6 +38,7 @@ impl HttpDownloader {
             concurrency: Some(8),
             output_path: Some(String::from(".")),
             client: reqwest::Client::new(),
+            count:0,
         }
     }
     /// 设置下载链接
@@ -55,10 +57,11 @@ impl HttpDownloader {
         self
     }
     /// 从相应的header中解析文件名称，如果不存在则设置一个默认名称download.bin
-    fn parse_filename(&self, result: &Response) -> String {
+    fn parse_filename(&mut self, result: &Response) -> String {
         let head = result.headers();
         //默认名称
-        let mut filepath = "download.bin".to_string();
+        let mut filepath = format!("download{}.bin",self.count);
+        self.count +=1;
         //检查是否有对应的键值对
         if let Some(content) = head.get("content-disposition") {
             let str = content.to_str().unwrap();
@@ -172,11 +175,12 @@ impl HttpDownloader {
             data_response = self.send_request_for_alldata().await;
         }
         // 流式请求资源
-        let time_began = Instant::now();
+
         let mut stream = data_response.bytes_stream();
         let mut data = Vec::new();
+        let time_began = Instant::now();
         while let Some(item) = stream.next().await {
-            let item = item?;
+            let item = item.unwrap();
             data.push(item);
         }
         let time_cost = time_began.elapsed().as_secs_f64();
@@ -201,7 +205,7 @@ impl HttpDownloader {
     }
 
     ///异步下载
-    pub async fn download(&self) -> Result<(), reqwest::Error> {
+    pub async fn download(&mut self) -> Result<(), reqwest::Error> {
         //异步发送请求
         let head = self.send_request_for_head().await;
         let content_range_length = self.makesure_support_download(&head);
@@ -214,6 +218,7 @@ impl HttpDownloader {
         let file = Arc::new(Mutex::new(
             File::create(path).await.expect("create file error"),
         ));
+        println!("{}","download.......".color(Color::Red));
         if content_range_length.0 {
             //支持并发下载
             let partition = self.split(content_range_length.1);
@@ -229,6 +234,7 @@ impl HttpDownloader {
                 .await
                 .expect("error when download file");
         }
+        println!("{}","download ok".color(Color::Red));
         Ok(())
     }
 }

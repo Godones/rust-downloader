@@ -52,7 +52,7 @@ impl FTP {
 
 mod ftptest{
     use std::fs;
-    use crate::myftp::FTP;
+    use super::FTP;
     #[allow(unused_macros)]
     macro_rules! BLOCK {
         ($e:expr) => {
@@ -73,11 +73,10 @@ mod ftptest{
         let passward = "52531225253.";
         let mut  ftp = FTP::login(address, user, passward).await;
         ftp.list(None).await;
-        ftp.download("test.txt","").await;
         ftp.disconnect().await;
     }
     async fn async_ftp_download() {
-        fs::remove_file("test.txt").unwrap();
+        // fs::remove_file("test.txt").unwrap();
         let address = "192.168.1.4:21";
         let user = "God";
         let passward = "52531225253.";
