@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["陈林峰"]
 
+readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -15,9 +16,23 @@ colorful = "0.2.1"
 async_ftp = { version = "5.0.0", features = ["secure"] }
 async-std = "1.10.0"
 
+log = "0.4.14"
+anyhow = "1.0.44"
+crossbeam-channel = "0.5.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_bencode = "0.2"
+serde_bytes = "0.11"
+url = "2.2.2"
+hex = "0.4"
+rust-crypto = "0.2.36"
+byteorder = "1"
+indicatif = "0.16.2"
+rand = "0.8.4"
+pretty_env_logger = "0.4"
 
 [profile.release]
-debug = true
+incremental = true
+
 
 [dev-dependencies]
 tokio-test = "0.4.2"

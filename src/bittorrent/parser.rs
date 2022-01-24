@@ -38,5 +38,12 @@ impl CommandArgument {
             self.target_path = matcher.value_of("file").unwrap().to_string();
         }
     }
+    pub fn get_torrent(&self)->&str{
+        self.file_path.as_ref().unwrap().as_str()
+    }
+
+    pub fn get_target_path(&self)->&str{
+        self.target_path.as_str()
+    }
 
 }

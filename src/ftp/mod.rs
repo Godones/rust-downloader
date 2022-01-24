@@ -3,7 +3,6 @@ mod parser;
 
 use colorful::{Color, Colorful};
 use parser::CommandArgument;
-use crate::ftp::myftp::FTP;
 
 pub async fn execute(){
     let mut command = CommandArgument::new();
