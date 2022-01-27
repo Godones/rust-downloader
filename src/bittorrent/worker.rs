@@ -1,10 +1,3 @@
-extern crate anyhow;
-extern crate crypto;
-extern crate hex;
-extern crate serde;
-extern crate serde_bencode;
-extern crate url;
-
 use crate::bittorrent::client::*;
 use crate::bittorrent::message::*;
 use crate::bittorrent::peer::*;
@@ -20,7 +13,6 @@ const NB_REQUESTS_MAX: u32 = 5;
 
 //每次请求的大小
 const BLOCK_SIZE_MAX: u32 = 16384;
-
 
 /// 生产者定义
 pub struct Worker {
@@ -63,7 +55,7 @@ impl Worker {
         };
 
         // 设置连接超时时间
-        if client.set_connection_timeout(5).is_err() {
+        if client.set_connection_timeout(10).is_err() {
             return;
         }
 
@@ -105,7 +97,6 @@ impl Worker {
                 }
             };
 
-            // 检查remote peer是否有这个piece
             if !client.has_piece(piece_work.index) {
                 // 如果本地没有这个piece就再发送到channel中
                 if self.work_chan.0.send(piece_work).is_err() {
@@ -150,7 +141,6 @@ impl Worker {
         }
     }
 
-
     fn download_piece(&self, client: &mut Client, piece_work: &mut PieceWork) -> Result<()> {
         // 设置连接超时时间
         // 对于下载资源来说要较长
@@ -191,10 +181,10 @@ impl Worker {
 
             // 解析消息
             match message.id {
-                MESSAGE_CHOKE => client.read_choke(),//阻塞客户端
-                MESSAGE_UNCHOKE => client.read_unchoke(),//解除阻塞
-                MESSAGE_HAVE => client.read_have(message)?,//本地已经下载
-                MESSAGE_PIECE => client.read_piece(message, piece_work)?,//发送一个资源块
+                MESSAGE_CHOKE => client.read_choke(),       //阻塞客户端
+                MESSAGE_UNCHOKE => client.read_unchoke(),   //解除阻塞
+                MESSAGE_HAVE => client.read_have(message)?, //本地已经下载
+                MESSAGE_PIECE => client.read_piece(message, piece_work)?, //下载一个资源快
                 _ => info!("received unknown message from peer"),
             }
         }
@@ -202,24 +192,18 @@ impl Worker {
         Ok(())
     }
 
-
     fn verify_piece_integrity(&self, piece_work: &mut PieceWork) -> Result<()> {
-
         let mut hasher = Sha1::new();
         hasher.input(&piece_work.data);
-
         let hex = hasher.result_str();
-
         // 编码字符串
         let decoded: Vec<u8> = hex::decode(hex)?;
-
         // 比较是否相同
         if decoded != piece_work.hash {
             return Err(anyhow!(
                 "could not verify integrity of piece downloaded from peer"
             ));
         }
-
         info!(
             "Successfully verified integrity of piece {:?}",
             piece_work.index

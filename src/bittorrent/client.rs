@@ -1,6 +1,3 @@
-extern crate anyhow;
-extern crate url;
-
 use crate::bittorrent::handshake::*;
 use crate::bittorrent::message::*;
 use crate::bittorrent::piece::*;
@@ -8,12 +5,11 @@ use crate::bittorrent::piece::*;
 use anyhow::{anyhow, Result};
 use byteorder::{BigEndian, ReadBytesExt, WriteBytesExt};
 
+use crate::bittorrent::peer::Peer;
 use std::io::{Cursor, Read, Write};
 use std::net::{IpAddr, SocketAddr, TcpStream};
 use std::time::Duration;
-use crate::bittorrent::peer::Peer;
 
-// use async_std::net::{IpAddr,SocketAddr,TcpStream};
 /// 客户端定义
 pub struct Client {
     peer: Peer,
@@ -30,7 +26,6 @@ pub struct Client {
 }
 
 impl Client {
-
     pub fn new(peer: Peer, peer_id: Vec<u8>, info_hash: Vec<u8>) -> Result<Client> {
         // 与peer建立链接
         let peer_socket = SocketAddr::new(IpAddr::V4(peer.ip), peer.port);
@@ -38,9 +33,7 @@ impl Client {
             Ok(conn) => conn,
             Err(_) => return Err(anyhow!("could not connect to peer")),
         };
-
         info!("Connected to peer {:?}", peer.id);
-
         let client = Client {
             peer,
             peer_id,
@@ -58,7 +51,7 @@ impl Client {
         self.choked
     }
 
-    /// 检查peer是否有此piece
+    /// &公有函数\\
     pub fn has_piece(&self, index: u32) -> bool {
         let byte_index = index / 8;
         let offset = index % 8;
@@ -206,7 +199,7 @@ impl Client {
         Ok(())
     }
 
-    /// Read UNCHOKE message from remote peer.
+    /// 设置本机未阻塞
     pub fn read_unchoke(&mut self) {
         info!("Receive MESSAGE_UNCHOKE from peer {:?}", self.peer.id);
         self.choked = false
@@ -222,7 +215,6 @@ impl Client {
         if self.conn.write(&message_encoded).is_err() {
             return Err(anyhow!("could not send MESSAGE_INTERESTED to peer"));
         }
-
         Ok(())
     }
 
@@ -270,7 +262,6 @@ impl Client {
         Ok(())
     }
 
-
     pub fn send_request(&mut self, index: u32, begin: u32, length: u32) -> Result<()> {
         let mut payload: Vec<u8> = vec![];
         payload.write_u32::<BigEndian>(index)?;
@@ -294,45 +285,29 @@ impl Client {
         Ok(())
     }
 
-    /// Read PIECE message from remote peer.
-    ///
-    /// The message payload contains the following information:
-    /// - index: integer specifying the zero-based piece index
-    /// - begin: integer specifying the zero-based byte offset within the piece
-    /// - block: block of data, which is a subset of the piece specified by index.
-    ///
-    /// # Arguments
-    ///
-    /// * `message` - The message to parse.
-    /// * `piece_work` - A work piece.
-    ///
     pub fn read_piece(&mut self, message: Message, piece_work: &mut PieceWork) -> Result<()> {
         info!("Receive MESSAGE_PIECE from peer {:?}", self.peer.id);
 
-        // Check if message id and payload are valid
+        // 检查消息合法性
         if message.id != MESSAGE_PIECE || message.payload.to_vec().len() < 8 {
             return Err(anyhow!("received invalid MESSAGE_HAVE from peer"));
         }
 
-        // Get message payload
         let payload: Vec<u8> = message.payload.to_vec();
 
-        // Get piece index
         let mut payload_cursor = Cursor::new(&payload[0..4]);
         let index = payload_cursor.read_u32::<BigEndian>()?;
 
-        // Check if piece index is valid
         if index != piece_work.index {
             return Err(anyhow!("received invalid piece from peer"));
         }
 
-        // Get byte offset within piece
+        // 获得这个piece的index
         let mut payload_cursor = Cursor::new(&payload[4..8]);
-        let begin: u32 = payload_cursor.read_u32::<BigEndian>()?;
+        let begin: u32 = payload_cursor.read_u32::<BigEndian>()?; //piece的开始位置
 
-        // Get piece block
         let block: Vec<u8> = payload[8..].to_vec();
-        let block_len: u32 = block.len() as u32;
+        let block_len: u32 = block.len() as u32; //长度
 
         // Check if byte offset is valid
         if begin + block_len > piece_work.length as u32 {
@@ -349,15 +324,15 @@ impl Client {
             self.peer.id
         );
 
-        // Add block to piece data
+        // 将收到的内容保存
         for i in 0..block_len {
             piece_work.data[begin as usize + i as usize] = block[i as usize];
         }
 
-        // Update downloaded data counter
+        // 更新已经下载的数量
         piece_work.downloaded += block_len;
 
-        // Update requests counter
+        // 更新已经请求的数量
         piece_work.requests -= 1;
 
         Ok(())

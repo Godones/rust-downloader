@@ -1,5 +1,10 @@
-use lib::http::download;
+use std::time::Instant;
+use lib::http::execute;
 #[tokio::main]
 async fn main() {
-    download().await;
+    let begin = Instant::now();
+    execute().await;
+    let end = begin.elapsed().as_millis();
+    println!("cost:{}",end);
+
 }

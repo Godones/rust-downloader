@@ -2,6 +2,7 @@ use anyhow::Result;
 const PROTOCOL_ID: &str = "BitTorrent protocol";
 
 /// 握手需要发送的内容
+#[derive(PartialEq, Debug)]
 pub struct Handshake {
     // 协议标识符的长度，始终为19 byte
     pub pstrlen: usize,
@@ -64,4 +65,23 @@ pub fn deserialize_handshake(buf: &Vec<u8>, pstrlen: usize) -> Result<Handshake>
         peer_id,
     };
     Ok(handshake)
+}
+#[cfg(test)]
+mod handshake_test {
+    use crate::bittorrent::handshake::{deserialize_handshake, Handshake, PROTOCOL_ID};
+
+    #[test]
+    fn test_serialize_and_deserialize_correct() {
+        let mut pstr = String::from(PROTOCOL_ID).into_bytes();
+        let mut reserved: Vec<u8> = vec![0; 8];
+        pstr.append(&mut reserved);
+        pstr.append(&mut vec![1; 20]);
+        pstr.append(&mut vec![0, 5, 0, 2]);
+
+        let message = Handshake::new(vec![0, 5, 0, 2], vec![1; 20]);
+        let serialized = message.serialize().unwrap();
+        let x = &serialized[1..].to_vec();
+        let deserialized = deserialize_handshake(x, 19).unwrap();
+        assert_eq!(message, deserialized);
+    }
 }

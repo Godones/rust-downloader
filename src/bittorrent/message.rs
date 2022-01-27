@@ -5,18 +5,17 @@ use byteorder::{BigEndian, WriteBytesExt};
 type MessageId = u8;
 type MessagePayload = Vec<u8>;
 
-pub const MESSAGE_CHOKE: MessageId = 0;// 阻塞消息接收者
-pub const MESSAGE_UNCHOKE: MessageId = 1;// 解除阻塞消息接收者
-pub const MESSAGE_INTERESTED: MessageId = 2;// 表示有兴趣接收数据
-pub const MESSAGE_NOTINTERSETED:MessageId = 3;// 表示没有有兴趣接收数据
-pub const MESSAGE_HAVE: MessageId = 4;// 提醒消息接收者，发送者已经下载了一个块
-pub const MESSAGE_BITFIELD: MessageId = 5;// 对发送者已经下载的片段进行编码
-pub const MESSAGE_REQUEST: MessageId = 6;// 向消息接收者请求一个块
-pub const MESSAGE_PIECE: MessageId = 7;// 传送满足请求的数据块
-pub const MESSAGE_CANCEL:MessageId = 8;// 取消一个请求
+pub const MESSAGE_CHOKE: MessageId = 0; // 阻塞消息接收者
+pub const MESSAGE_UNCHOKE: MessageId = 1; // 解除阻塞消息接收者
+pub const MESSAGE_INTERESTED: MessageId = 2; // 表示有兴趣接收数据
+pub const MESSAGE_NOTINTERSETED: MessageId = 3; // 表示没有有兴趣接收数据
+pub const MESSAGE_HAVE: MessageId = 4; // 提醒消息接收者，发送者已经下载了一个块
+pub const MESSAGE_BITFIELD: MessageId = 5; // 对发送者已经下载的片段进行编码
+pub const MESSAGE_REQUEST: MessageId = 6; // 向消息接收者请求一个块
+pub const MESSAGE_PIECE: MessageId = 7; // 传送满足请求的数据块
+pub const MESSAGE_CANCEL: MessageId = 8; // 取消一个请求
 
-
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone, PartialOrd, PartialEq)]
 pub struct Message {
     // Message type
     pub id: MessageId,
@@ -25,7 +24,6 @@ pub struct Message {
 }
 
 impl Message {
-
     pub fn new(id: MessageId) -> Self {
         Message {
             id,
@@ -68,4 +66,17 @@ pub fn deserialize_message(message_buf: &Vec<u8>, message_len: usize) -> Result<
     let message: Message = Message::new_with_payload(id, payload);
 
     Ok(message)
+}
+
+#[cfg(test)]
+mod message_test {
+    use crate::bittorrent::message::{deserialize_message, Message};
+
+    #[test]
+    fn test_serialize_and_deserialize_correct() {
+        let message = Message::new_with_payload(7, vec![1, 2, 4, 4, 5]);
+        let serialized = message.serialize().unwrap();
+        let deserialized = deserialize_message(&vec![7, 1, 2, 4, 4, 5], 6).unwrap();
+        assert_eq!(message, deserialized);
+    }
 }

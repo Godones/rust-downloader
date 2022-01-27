@@ -1,10 +1,3 @@
-extern crate anyhow;
-extern crate crypto;
-extern crate hex;
-extern crate serde;
-extern crate serde_bencode;
-extern crate url;
-
 use crate::bittorrent::peer::*;
 use crate::bittorrent::piece::*;
 use crate::bittorrent::worker::*;
@@ -18,14 +11,14 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use serde_bencode::{de, ser};
 use serde_bytes::ByteBuf;
-use std::str;
-use url::Url;
 use std::borrow::Cow;
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
+use std::str;
 use std::thread;
 use std::time::Duration;
+use url::Url;
 
 const PORT: u16 = 6881; //监听端口
 const SHA1_HASH_SIZE: usize = 20; //SHA1长度
@@ -37,13 +30,13 @@ pub struct Torrent {
     announce: String,
     //整个文件的hash校验值
     info_hash: Vec<u8>,
-    // SHA-1 hashes of each pieces
+    // SHA-1 哈希值列表
     pieces_hashes: Vec<Vec<u8>>,
     // 每个piece的大小
     piece_length: u32,
     // 文件总大小
-    length: u32,
-    // Suggested filename where to save the file
+    length: u64,
+    // 文件名称
     name: String,
     // 标识本机的id
     peer_id: Vec<u8>,
@@ -60,7 +53,7 @@ struct BencodeInfo {
     #[serde(rename = "piece length")]
     piece_length: u32,
     #[serde(rename = "length")]
-    length: u32,
+    length: u64,
     /// 文件名称
     #[serde(rename = "name")]
     name: String,
@@ -127,12 +120,12 @@ impl Torrent {
     }
 
     /// 打开torrent文件构建
-    pub async  fn open(&mut self, filepath: PathBuf) -> Result<()> {
+    pub async fn open(&mut self, filepath: PathBuf) -> Result<u64> {
         let mut file = match File::open(filepath) {
             Ok(file) => file,
             Err(_) => return Err(anyhow!("could not open torrent")),
         };
-        // Read torrent content in a buffer
+        // 读取torrent文件内容
         let mut buf = vec![];
         if file.read_to_end(&mut buf).is_err() {
             return Err(anyhow!("could not read torrent"));
@@ -159,7 +152,7 @@ impl Torrent {
         self.name = bencode.info.name.to_owned();
         self.peer_id = peer_id.clone();
         self.peers = self.request_peers(peer_id, PORT).await.unwrap();
-        Ok(())
+        Ok(self.length)
     }
 
     /// 向track服务器发送请求获取所有peer的信息
@@ -171,7 +164,10 @@ impl Torrent {
         };
 
         // 建立http客户端
-        let client = match reqwest::Client::builder().timeout(Duration::from_secs(15)).build(){
+        let client = match reqwest::Client::builder()
+            .timeout(Duration::from_secs(15))
+            .build()
+        {
             Ok(client) => client,
             Err(_) => return Err(anyhow!("could not connect to tracker")),
         };
@@ -186,6 +182,7 @@ impl Torrent {
         };
 
         // 反序列化返回的信息
+        // println!("{:?}",response);
         let tracker_bencode = match de::from_bytes::<BencodeTracker>(&response) {
             Ok(bencode) => bencode,
             Err(_) => return Err(anyhow!("could not decode tracker response")),
@@ -277,11 +274,12 @@ impl Torrent {
         let peers = self.peers.to_owned();
         for peer in peers {
             let peer_copy = peer.clone();
-            let peer_id_copy = self.peer_id.clone();//本机id
+            let peer_id_copy = self.peer_id.clone(); //本机id
             let info_hash_copy = self.info_hash.clone();
             let work_chan_copy = work_chan.clone();
             let result_chan_copy = result_chan.clone();
 
+            // 对于每个可用的peer，我们都建一个工作者，将其放入工作线程中运行
             // 创建工作者
             let worker = Worker::new(
                 peer_copy,
@@ -305,7 +303,7 @@ impl Torrent {
                 .progress_chars("#>-"),
         );
 
-        // 建立下载文件
+        // 接收文件内容
         let mut data: Vec<u8> = vec![0; self.length as usize];
         let mut nb_pieces_downloaded = 0;
         while nb_pieces_downloaded < self.pieces_hashes.len() {
@@ -314,7 +312,6 @@ impl Torrent {
                 Err(_) => return Err(anyhow!("Error: could not receive piece from channel")),
             };
 
-            // Copy piece data
             let begin: u32 = piece_result.index * self.piece_length;
             for i in 0..piece_result.length as usize {
                 data[begin as usize + i] = piece_result.data[i];
@@ -330,12 +327,12 @@ impl Torrent {
     /// 获取piece长度
     /// 主要是为了防止最后一个piece长度与文件中的不一样
     fn get_piece_length(&self, index: u32) -> Result<u32> {
-        let begin: u32 = index * self.piece_length;
-        let mut end: u32 = begin + self.piece_length;
+        let begin: u64 = (index * self.piece_length) as u64;
+        let mut end: u64 = begin + self.piece_length as u64;
         if end > self.length {
             end = self.length;
         }
 
-        Ok(end - begin)
+        Ok((end - begin) as u32)
     }
 }

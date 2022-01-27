@@ -31,7 +31,6 @@ impl Peer {
 }
 
 impl Torrent {
-
     /// 构建所有的Peer的信息
     /// 总共6bytes
     /// 前4byte为ip地址，后两个字节为端口
@@ -68,5 +67,24 @@ impl Torrent {
         }
 
         Ok(peers)
+    }
+}
+
+mod peer_test {
+    use crate::bittorrent::torrent::Torrent;
+
+    #[test]
+    fn test_build_peer_success() {
+        let torrent = Torrent::new();
+        let peerinfo = vec![192, 165, 1, 21, 0, 1];
+        let answer = torrent.build_peers(peerinfo).unwrap();
+        assert_eq!(answer.len(), 1);
+    }
+    #[test]
+    #[should_panic]
+    fn test_build_peer_fail() {
+        let torrent = Torrent::new();
+        let peerinfo = vec![192, 165, 1, 21, 12];
+        let _ = torrent.build_peers(peerinfo).unwrap();
     }
 }
